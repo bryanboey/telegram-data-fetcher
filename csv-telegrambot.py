@@ -11,7 +11,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-updater = Updater(token='1505847367:AAE5CgwM-myXbbDXlO7092fpBdYRYXtBaZg', use_context=True)
+updater = Updater(token='token id', use_context=True)
 
 dispatcher = updater.dispatcher
 
