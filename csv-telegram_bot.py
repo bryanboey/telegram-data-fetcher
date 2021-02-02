@@ -6,10 +6,16 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     Filters,
-    PrefixHandler
+    PrefixHandler,
+    CallbackContext,
+    CallbackQueryHandler
 )
-from telegram import ParseMode
-
+from telegram import (
+    ParseMode,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Update
+)
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -93,9 +99,11 @@ def randomtag_select(update, context):
             #rt_index = rt_index + 1
         #context.bot.send_message(chat_id=update.effective_chat.id, text=rt_message_to_user + "\nPick a number and.. Rock Paper Scissors! ✊👋✌")
         context.bot.send_message(chat_id=update.effective_chat.id, text="For " + rt_keyword + ", I have randomly selected two options:"
-                                                                        "\n\n*1. " + rts1 + "*     - " + rts1price +
+                                                                        "\n\n*1. " + rts1 + "*" +
+                                                                        "\n" + rts1price +
                                                                         "\n" + rts1address +
-                                                                        "\n\n*2. " + rts2 + "*     - " + rts2price +
+                                                                        "\n\n*2. " + rts2 + "*" +
+                                                                        "\n" + rts2price +
                                                                         "\n" + rts2address,parse_mode=ParseMode.MARKDOWN)
 
 #randomtag_select_handler = MessageHandler(Filters.text & (~Filters.command), randomtag_select)
@@ -166,9 +174,11 @@ def randomselect(update, context): #randomly select a name from a name column of
             #index = index + 1
     #context.bot.send_message(chat_id=update.effective_chat.id, text=message_to_userRandom + "\nPick a number and.. Rock Paper Scissors! ✊👋✌")
     context.bot.send_message(chat_id=update.effective_chat.id, text="I have randomly selected two options:"
-                                                                    "\n\n*1. " + rs1 + "*     - " + rs1price +
+                                                                    "\n\n*1. " + rs1 + "*" +
+                                                                    "\n" + rs1price +
                                                                     "\n" + rs1address +
-                                                                    "\n\n*2. " + rs2 + "*     - " + rs2price +
+                                                                    "\n\n*2. " + rs2 + "*" +
+                                                                    "\n" + rs2price +
                                                                     "\n" + rs2address,parse_mode=ParseMode.MARKDOWN)
 
 random_handler = CommandHandler('random', randomselect)
