@@ -54,7 +54,8 @@ def start(update: Update, context: CallbackContext) -> int:
 
 def budget(update: Update, context: CallbackContext) -> int:
     user = update.message.from_user
-    global budget_input = update.message.text
+    global budget_input 
+    budget_input = update.message.text
     logger.info("User %s entered budget: %s", user.first_name, update.message.text)
     update.message.reply_text('Okay! What about food type?' ' Or send /skip if you don\'t have a preference.',
         reply_markup=ReplyKeyboardRemove(),
