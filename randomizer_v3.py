@@ -28,8 +28,12 @@ logger = logging.getLogger(__name__)
 
 # Start USER_SELECTION_PROCESS
 CHOOSING, SELECTED_BUDGET, SELECTED_KEYWORD = range(3)
+budget_input = None
+keyword_input = None
 
 def start(update: Update, context: CallbackContext) -> None:
+    budget_input = None
+    keyword_input = None
     user = update.message.from_user
     logger.info("User %s started output selection conversation.", user.first_name)
     keyboard = [
@@ -51,12 +55,11 @@ def button(update, context):
     query.answer()
     query.message.delete()
     logger.info("[InlineKeyboard] User %s selected %s.", query.message.chat.first_name, query.data)
-
     return
 
 ### selected options function
 def type_budget(update, context):
-    button(update, context)
+    #button(update, context)
 
     budget_keyboard = [['<$15', '$15 - $25', '$25 - $35', ],
                        ['$35 - $50', '$50 - $100', '>$100']]
@@ -86,106 +89,63 @@ def type_keyword(update: Update, context: CallbackContext):
 #### selected option user input logging
 def budget(update: Update, context: CallbackContext) -> int:
     user = update.message.from_user
-    global budget_input
+
     budget_input = update.message.text
     logger.info("User %s entered budget: %s", user.first_name, update.message.text)
     update.message.reply_text('No problem! I got you fam.',
         reply_markup=ReplyKeyboardRemove(),
     )
 
-    return budgetSample(update, context)
+    return randomSample(update, context)
 
 def keyword(update: Update, context: CallbackContext) -> int:
     user = update.message.from_user
-    global keyword_input
+
     keyword_input = update.message.text
     logger.info("User %s entered keyword: %s", user.first_name, update.message.text)
     update.message.reply_text('Sure thing! Let me see..',
         reply_markup=ReplyKeyboardRemove(),
     )
 
-    return keywordSample(update, context)
-
+    return randomSample(update, context)
 
 #### generating Sample
-def budgetSample(update, context) -> None:
-    user = update.message.from_user
+def filterBudget(item) -> bool:
+    if budget_input is None:
+        return True
+    return budget_input == item['price']
+
+def filterKeyword(item) -> bool:
+    if keyword_input is None:
+        return True
+    if keyword_input in item['tags']:
+        return True
+    return False
+
+def filterEverything(item) -> bool:
+    return filterBudget(item) and filterKeyword(item)
+
+def randomSample(update, context):
+    #query = update.callback_query
+    #print(budget_input)
+    #print(keyword_input)
     with open('pty.csv', 'r') as csv_file:
-        csv_dict_reader = csv.DictReader(csv_file)
-        set_one = list()
-        for row in csv_dict_reader:  #
-            if budget_input in row['price']:
-                for item in row['name'].split(", "):
-                    set_one.append(row)
-
-        if len(set_one) == 0:  # if there's no entries found
-            update.message.reply_text('Sorry, I couldn\'t find anything.')
-            logger.info("User %s conversation ended", user.first_name)
-            return ConversationHandler.END
-
-        if len(set_one) != 0:  # entries found
-            return getSampleFromSet(set_one, update, context)
-
-def keywordSample(update, context) -> None:
-    user = update.message.from_user
-    with open('pty.csv', 'r') as csv_file:
-        csv_dict_reader = csv.DictReader(csv_file)
-        set_one = list()
-        for row in csv_dict_reader:  #
-            if keyword_input.lower() in row['tags']:
-                for item in row['name'].split(", "):
-                    set_one.append(row)
-
-        if len(set_one) == 0:  # if there's no entries found
-            update.message.reply_text('Sorry, I couldn\'t find anything. Please try again.')
-            return type_keyword(update, context)
-
-        if len(set_one) != 0:  # entries found
-            return getSampleFromSet(set_one, update, context)
-
-def type_noneSample(update, context) -> None:
-    button(update, context)
-    query = update.callback_query
-    context.bot.send_message(chat_id=update.effective_chat.id, text=
-    'Anything will do? Cool!')
-
-    with open('pty.csv', 'r') as csv_file:
-        csv_dict_reader = csv.DictReader(csv_file)
-        set_one = list()
-        for row in csv_dict_reader:  #
-            for item in row['name'].split(", "):
-                    set_one.append(row)
-
-        random_number_sample = min(len(set_one), 5)
-        rt_randomSelect = random.sample(set_one, random_number_sample)
-
+        reader = csv.DictReader(csv_file)
+        filtered = list(filter(filterEverything, reader))
+        sample = random.sample(filtered, min(len(filtered), 5))
+        print(sample)
         text = 'I have randomly selected the following:\n'
-        for i in range(len(rt_randomSelect)):
-            text = text + '\n*' + str(i + 1) + '. ' + rt_randomSelect[i]["name"] + \
-                   '*\n' + rt_randomSelect[i]["price"] + \
-                   '\n' + '[' + rt_randomSelect[i]["address"] + ']' + '(' + rt_randomSelect[i]["maplink"] + ')' + '\n'
+        for i in range(len(sample)):
+            text = text + \
+                        '\n*' + str(i + 1) + '. ' + sample[i]["name"] + \
+                        '*\n' + sample[i]["price"] + \
+                        '\n' + '[' + sample[i]["address"] + ']' + '(' + sample[i]["maplink"] + ')' + '\n'
+        print(text)
 
-        context.bot.send_message(chat_id=update.effective_chat.id, text=text,
-                                 parse_mode=ParseMode.MARKDOWN,
-                                 disable_web_page_preview=True)
-        logger.info("Conversation with User %s has ended.", query.message.chat.first_name)
-        return ConversationHandler.END
-
-# retrieving sample from selected user input
-def getSampleFromSet(set_one, update, context):
-    user = update.message.from_user
-    # number of random selection from sample. if sample is less than 5, smaller number will be taken instead
-    random_number_sample = min(len(set_one), 5)
-    rt_randomSelect = random.sample(set_one, random_number_sample)
-
-    text = 'I have randomly selected the following:\n'
-    for i in range(len(rt_randomSelect)):
-        text = text + '\n*' + str(i + 1) + '. ' + rt_randomSelect[i]["name"] + \
-               '*\n' + rt_randomSelect[i]["price"] + \
-               '\n' + '[' + rt_randomSelect[i]["address"] + ']' + '(' + rt_randomSelect[i]["maplink"] + ')' + '\n'
-
-    logger.info("Conversation with User %s has ended.", user.first_name)
-    update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
+    context.bot.send_message(chat_id=update.effective_chat.id, text=text,
+                             parse_mode=ParseMode.MARKDOWN,
+                             disable_web_page_preview=True)
+    #logger.info("Conversation with User %s has ended.", query.message.chat.first_name)
     return ConversationHandler.END
 
 # fallback request to end conversation
@@ -211,7 +171,7 @@ def main():
             CHOOSING: [
                 CallbackQueryHandler(type_budget, pattern='^type_budget$'),
                 CallbackQueryHandler(type_keyword, pattern='^type_keyword$'),
-                CallbackQueryHandler(type_noneSample, pattern='^type_none$'),
+                CallbackQueryHandler(randomSample, pattern='^type_none$'),
             ],
             SELECTED_BUDGET: [
                 MessageHandler(Filters.text & ~Filters.command, budget),
@@ -233,8 +193,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
