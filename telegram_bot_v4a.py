@@ -1,6 +1,6 @@
-import csv
 import logging
 import random
+import gspread
 from telegram.ext import (
     Updater,
     CommandHandler,
@@ -26,28 +26,34 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+gc = gspread.service_account('gsapi_key.json')
+sht1 = gc.open_by_key('1KK7G8mZJd7YmV7ONqtsHejkkcFtORgG7fUx3R1fh44I')
+
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Hi! I'm Botohyao, an information grabber!"
                                                                     "\n\n*Command list:*"
                                                                     "\n/hungry - randomly picks 5 places based on preference"
                                                                     "\n/masterlist - lists all food places"
                                                                     "\n/tags - lists all available keywords to search"
-                                                                    "\n.filter <tag> - searches all places with <tag>"
+                                                                    "\n.filter <keyword> - searches all places with <keyword>"
                                                                     "\n/moreinfo - credits and more information",parse_mode=ParseMode.MARKDOWN)
 
 def moreinfo(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="\n\nThis is a private list of food places by my girlfriend and myself we wish to visit. "
-                                                                    "I created this bot to serve as an assistant to retrieve specific data easily "
-                                                                    "and quickly as opposed to opening and looking through a spreadsheet that's tiny on our phones."
-                                                                    "\n\nCurrently working to improve user-friendliness of functions "
-                                                                    "and curating more places to include in the list."
-                                                                    "\n\nCredits:"
-                                                                    "\nModules by python-telegram-bot"
-                                                                    "\nBig thanks to Cameron & Jonathan for the guidance. 😊")
+    context.bot.send_message(chat_id=update.effective_chat.id, text='\n\nThis is a private list of food places by my girlfriend and myself we wish to visit. '
+                                                                    'I created this bot to serve as an assistant to retrieve specific data easily '
+                                                                    'and quickly as opposed to opening and looking through a spreadsheet that\'s tiny on our phones.'
+                                                                    '\n\nCurrently working to improve user-friendliness of functions '
+                                                                    'and curating more places to include in the list.'
+                                                                    '\n\n<a href="https://github.com/bryanboey/csv-telegram">My GitHub</a>'                                     
+                                                                    '\n\nCredits:'
+                                                                    '\nModules by python-telegram-bot'
+                                                                    '\nBig thanks to Cameron & Jonathan for the guidance. 😊',
+                             parse_mode=ParseMode.HTML, disable_web_page_preview=True)
 
 # Start USER_SELECTION_PROCESS
 CHOOSING, SELECTED_BUDGET, SELECTED_KEYWORD = range(3)
 
+# Conversation command trigger
 def hungry(update: Update, context: CallbackContext) -> None:
     global budget_input
     global keyword_input
@@ -80,11 +86,11 @@ def button(update, context):
 def type_budget(update, context):
     button(update, context)
 
-    budget_keyboard = [['<$15', '$15 - $25', '$25 - $35', ],
-                       ['$35 - $50', '$50 - $100', '>$100']]
+    budget_keyboard = [['<$10', '$10 - $25', '$25 - $50', ],
+                       ['$50 - $100', '>$100']]
 
     context.bot.send_message(chat_id=update.effective_chat.id, text=
-    'Please select your budget.',
+    'Please select your budget or type /cancel to stop.',
                              reply_markup=ReplyKeyboardMarkup(budget_keyboard,
                                                               one_time_keyboard=True, resize_keyboard=True),
                              )
@@ -94,16 +100,24 @@ def type_budget(update, context):
 def type_keyword(update: Update, context: CallbackContext):
     button(update, context)
 
-    keyword_keyboard = [['Cafe', 'Hawker', 'Bar', ],
+    keyword_keyboard = [['Local', 'Cafe', 'Bar', ],
                         ['Japanese', 'Korean', 'Italian']]
 
     context.bot.send_message(chat_id=update.effective_chat.id, text=
-    'Please select your food preference.',
+    'Please select your food preference or type /cancel to stop.',
                              reply_markup=ReplyKeyboardMarkup(keyword_keyboard,
                                                               one_time_keyboard=True, resize_keyboard=True),
                              )
 
     return SELECTED_KEYWORD
+
+def type_none(update: Update, context: CallbackContext):
+    button(update, context)
+    context.bot.send_message(chat_id=update.effective_chat.id, text=
+    'Anything will do? Cool!'
+                             )
+
+    return randomSample(update, context)
 
 #### selected option user input logging
 def budget(update: Update, context: CallbackContext) -> int:
@@ -134,12 +148,12 @@ def keyword(update: Update, context: CallbackContext) -> int:
 def filterBudget(item) -> bool:
     if budget_input is None:
         return True
-    return budget_input == item['price']
+    return budget_input == item['Price']
 
 def filterKeyword(item) -> bool:
     if keyword_input is None:
         return True
-    if keyword_input.lower() in item['tags']:
+    if keyword_input.lower() in item['Tags']:
         return True
     return False
 
@@ -147,27 +161,28 @@ def filterEverything(item) -> bool:
     return filterBudget(item) and filterKeyword(item)
 
 def randomSample(update, context):
-    with open('pty.csv', 'r') as csv_file:
-        reader = csv.DictReader(csv_file)
-        filtered = list(filter(filterEverything, reader))
-        sample = random.sample(filtered, min(len(filtered), 5))
-        if len(sample) == 0:  # if there's no entries found
-            update.message.reply_text('Sorry, I couldn\'t find anything. Please /start again.')
-            return ConversationHandler.END
+    worksheet = sht1.worksheet("masterList")
+    pty_dictList = worksheet.get_all_records()
+    filtered = list(filter(filterEverything, pty_dictList))
+    sample = random.sample(filtered, min(len(filtered), 5))
+    if len(sample) == 0:  # if there's no entries found
+        update.message.reply_text('Sorry, I couldn\'t find anything. Please /start again.')
+        return ConversationHandler.END
 
-        if len(sample) != 0:  # entries found
-            text = 'I have randomly selected the following:\n'
-            for i in range(len(sample)):
-                text = text + \
-                            '\n*' + str(i + 1) + '. ' + sample[i]["name"] + \
-                            '*\n' + sample[i]["price"] + \
-                            '\n' + '[' + sample[i]["address"] + ']' + '(' + sample[i]["maplink"] + ')' + '\n'
+    if len(sample) != 0:  # entries found
+        text = 'I have randomly selected the following:\n'
+        for i in range(len(sample)):
+            text = text + \
+                        '\n*' + str(i + 1) + '. ' + sample[i]["Name"] + \
+                        '*\n' + sample[i]["Price"] + \
+                        '\n' + '[' + sample[i]["Address"] + ']' + '(' + sample[i]["Maplink"] + ')' + '\n'
 
         context.bot.send_message(chat_id=update.effective_chat.id, text=text,
                                  parse_mode=ParseMode.MARKDOWN,
                                  disable_web_page_preview=True)
-        logger.info("Conversation with User has ended.")
-        return ConversationHandler.END
+
+    logger.info("Conversation with User has ended.")
+    return ConversationHandler.END
 
 # fallback request to end conversation
 def cancel(update: Update, context: CallbackContext) -> int:
@@ -181,40 +196,42 @@ def cancel(update: Update, context: CallbackContext) -> int:
 
 # masterList command line
 def masterList(update, context):
-    with open('pty.csv', 'r') as csv_file:
-        masterSet = set()
-        csv_dict_reader = csv.DictReader(csv_file)
-        for row in csv_dict_reader:  # this is where all unique tags are put into a set
-            for item in row['name'].split(", "):  # removing comma from all strings in 'tags' column
-                masterSet.add(item)
+    worksheet = sht1.worksheet("masterList")
+    pty_dictList = worksheet.get_all_records()
+    masterListList = list(pty_dictList)
 
-    message_to_userMaster = "Available places are: \n\n"
+    masterList_text = "Available places are: \n\n"
     index = 1
-    for item in masterSet:
-        message_to_userMaster = message_to_userMaster + str(index) + ". " + item + "\n"
+    for item in masterListList:
+        masterList_text = masterList_text + str(index) + ". " + item['Name'] + "\n"
         index = index + 1
-    context.bot.send_message(chat_id=update.effective_chat.id, text=message_to_userMaster)
+    context.bot.send_message(chat_id=update.effective_chat.id, text=masterList_text)
 
 #filter search by !<keywords>
 def filter_search(update, context):
     user_input = update.message.text #i.e ".tag <tag>
     keyword = str(user_input[8:]) #because user_input now includes "!tag", to search without prefix = [5:]
-    output = ""
-    with open('pty.csv', 'r') as csv_file:
-        csv_dict_reader = csv.DictReader(csv_file)
-        for row in csv_dict_reader:
-            if keyword in row['tags']:
-                output = output + row['name'] + "\n"
-        context.bot.send_message(chat_id=update.effective_chat.id, text="For " + user_input[8:] + ", I have found:" + "\n\n" + output)
+
+    worksheet = sht1.worksheet("masterList")
+    pty_dictList = worksheet.get_all_records()
+
+    text = "Available places for '" + keyword + "' are: \n\n"
+    index = 1
+    for item in pty_dictList:
+        if keyword in item['Tags']:
+            text = text + str(index) + ". " + item['Name'] + "\n"
+            index = index + 1
+
+    context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 #output list of all available <tags> to search
 def tags(update, context):
-    with open('pty.csv', 'r') as csv_file:
-        tagSet = set()
-        csv_dict_reader = csv.DictReader(csv_file)
-        for row in csv_dict_reader:
-            for item in row['tags'].split(", "):
-                tagSet.add(item)
+    worksheet = sht1.worksheet("masterList")
+    pty_dictList = worksheet.get_all_records()
+    tagSet = set()
+    for item in pty_dictList:
+        for i in item['Tags'].split(", "):
+            tagSet.add(i)
 
     message_to_user = "Available keywords to search are: \n\n"
     index = 1
@@ -229,7 +246,7 @@ def unknown(update, context): #unknown commands
 
 def main():
     # Create the Updater and pass it your bot's token.
-    updater = Updater("TOKEN")
+    updater = Updater("1505847367:AAFM8d8rY7CvKvXxAMhlX0D0g-Xzlwf0pjk")
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
@@ -243,7 +260,7 @@ def main():
             CHOOSING: [
                 CallbackQueryHandler(type_budget, pattern='^type_budget$'),
                 CallbackQueryHandler(type_keyword, pattern='^type_keyword$'),
-                CallbackQueryHandler(randomSample, pattern='^type_none$'),
+                CallbackQueryHandler(type_none, pattern='^type_none$'),
             ],
             SELECTED_BUDGET: [
                 MessageHandler(Filters.text & ~Filters.command, budget),
