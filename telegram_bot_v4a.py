@@ -26,8 +26,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-gc = gspread.service_account('gsapi_key.json')
-sht1 = gc.open_by_key('1KK7G8mZJd7YmV7ONqtsHejkkcFtORgG7fUx3R1fh44I')
+gc = gspread.service_account('JSON KEY')
+sht1 = gc.open_by_key('GOOGLE SHEET ID')
 
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Hi! I'm Botohyao, an information grabber!"
@@ -246,7 +246,7 @@ def unknown(update, context): #unknown commands
 
 def main():
     # Create the Updater and pass it your bot's token.
-    updater = Updater("1505847367:AAFM8d8rY7CvKvXxAMhlX0D0g-Xzlwf0pjk")
+    updater = Updater("TOKEN")
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
