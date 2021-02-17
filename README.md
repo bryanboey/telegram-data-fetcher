@@ -1,5 +1,5 @@
-# csv-telegram
-Using Telegram to fetch data from CSV files
+# telegram-data-fetcher
+Using Telegram to fetch data from CSV files/google spreadsheet
 
 My first code for my own reference
 
